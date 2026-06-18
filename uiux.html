@@ -1,0 +1,1363 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Tunai — Catatan Keuangan</title>
+<meta name="description" content="Aplikasi catatan keuangan pribadi Tunai: lacak saldo, transaksi, dan anggaran.">
+<style>
+  :root{
+    /* Tema baru: tegas, modern, fintech dark-blue */
+    --cream: #F6F8FC;
+    --cream-deep: #E6ECF6;
+    --ink: #0B1220;
+    --ink-soft: #334155;
+    --orange: #2563EB;
+    --orange-deep: #1D4ED8;
+    --orange-pale: #DBEAFE;
+    --green: #059669;
+    --line: rgba(15,23,42,0.10);
+    --shadow-1: 0 1px 0 rgba(15,23,42,0.06);
+    --radius-card: 22px;
+    --radius-pill: 999px;
+    --ease: cubic-bezier(.22,.9,.27,1);
+    --ease-snap: cubic-bezier(.5,1.6,.4,1);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--ink);
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+    overscroll-behavior: none;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
+  }
+
+  /* ===== App shell ===== */
+  .device{
+    max-width: 430px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background: var(--cream);
+    position: relative;
+    overflow-x: hidden;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* ===== Top App Bar ===== */
+  .topbar{
+    position: sticky;
+    top:0;
+    z-index: 30;
+    background: var(--cream);
+    padding: 14px 16px 0 16px;
+    border-bottom: 1px solid transparent;
+    transition: box-shadow .25s var(--ease), border-color .25s var(--ease);
+  }
+  .topbar.scrolled{
+    box-shadow: 0 6px 18px -10px rgba(26,22,20,0.35);
+    border-color: var(--line);
+  }
+  .topbar-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .icon-btn{
+    width:42px;height:42px;
+    border-radius: 50%;
+    border:none;
+    background: transparent;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    color: var(--ink);
+    -webkit-tap-highlight-color: transparent;
+    transition: background .18s var(--ease), transform .15s var(--ease-snap);
+  }
+  .icon-btn:active{ transform: scale(.88); }
+  .icon-btn:hover{ background: rgba(26,22,20,0.06); }
+  .icon-btn svg{ width:22px; height:22px; }
+
+  .brand{
+    display:flex;
+    flex-direction:column;
+    line-height:1;
+  }
+  .brand-mark{
+    font-family: 'Sora', sans-serif;
+    font-weight: 800;
+    font-size: 19px;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+  }
+  .brand-mark span{ color: var(--orange); }
+  .brand-sub{
+    font-size: 10.5px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    opacity:.6;
+    margin-top:2px;
+  }
+
+  .top-actions{ display:flex; align-items:center; gap:2px; position:relative; }
+
+  /* Top apps menu (submenu) */
+  .apps-menu-wrap{ position:relative; }
+  .apps-panel{
+    position:absolute;
+    top:48px;
+    right:0;
+    width:210px;
+    background: var(--ink);
+    color: var(--cream);
+    border-radius: 16px;
+    padding:8px;
+    box-shadow: 0 18px 40px -10px rgba(0,0,0,0.45);
+    opacity:0;
+    transform: translateY(-8px) scale(.96);
+    pointer-events:none;
+    transition: opacity .2s var(--ease), transform .22s var(--ease-snap);
+    z-index: 40;
+  }
+  .apps-panel.open{
+    opacity:1;
+    transform: translateY(0) scale(1);
+    pointer-events:auto;
+  }
+  .apps-panel::before{
+    content:'';
+    position:absolute;
+    top:-5px; right:16px;
+    width:10px;height:10px;
+    background:var(--ink);
+    transform: rotate(45deg);
+    border-radius:2px;
+  }
+  .apps-item{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    padding:10px 10px;
+    border-radius:10px;
+    font-size:13.5px;
+    font-weight:600;
+    cursor:pointer;
+    transition: background .15s var(--ease);
+    position:relative;
+  }
+  .apps-item:hover{ background: rgba(249,236,204,0.1); }
+  .apps-item svg{ width:17px;height:17px; flex-shrink:0; opacity:.85; }
+  .apps-item .chev{
+    margin-left:auto;
+    transition: transform .2s var(--ease);
+    width:14px;height:14px;
+    opacity:.6;
+  }
+  .apps-item.has-sub.open .chev{ transform: rotate(90deg); }
+  .apps-sub{
+    max-height:0;
+    overflow:hidden;
+    transition: max-height .25s var(--ease);
+    margin-left: 8px;
+    border-left: 1px solid rgba(249,236,204,0.15);
+  }
+  .apps-sub.open{ max-height: 160px; }
+  .apps-sub-item{
+    padding:9px 10px 9px 16px;
+    font-size:12.5px;
+    font-weight:500;
+    color: rgba(249,236,204,0.75);
+    cursor:pointer;
+    transition: color .15s, background .15s;
+    border-radius:8px;
+  }
+  .apps-sub-item:hover{ color:var(--cream); background: rgba(249,236,204,0.08); }
+  .apps-divider{ height:1px; background:rgba(249,236,204,0.12); margin:6px 4px; }
+
+  /* ===== Tabs bar ===== */
+  .tabs{
+    display:flex;
+    gap: 22px;
+    padding: 18px 16px 0 16px;
+    position: relative;
+    overflow-x:auto;
+    scrollbar-width:none;
+  }
+  .tabs::-webkit-scrollbar{ display:none; }
+  .tab-btn{
+    background:none;border:none;
+    font-family:inherit;
+    font-size: 14.5px;
+    font-weight: 700;
+    padding: 0 0 14px 0;
+    color: var(--ink-soft);
+    opacity: .55;
+    cursor:pointer;
+    position:relative;
+    white-space:nowrap;
+    transition: opacity .2s var(--ease), color .2s var(--ease);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tab-btn.active{ opacity:1; color:var(--ink); }
+  .tab-underline{
+    position:absolute;
+    bottom:0;
+    height:3px;
+    border-radius: 3px 3px 0 0;
+    background: var(--orange);
+    transition: left .32s var(--ease), width .32s var(--ease);
+  }
+  .tabs-divider{ height:1px; background:var(--line); margin: 0 0 0 0; }
+
+  /* ===== Scroll content ===== */
+  .scroll-area{
+    flex:1;
+    overflow-y:auto;
+    padding-bottom: 100px;
+    position:relative;
+  }
+
+  /* Pull to refresh */
+  .refresh-zone{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    height:0;
+    overflow:hidden;
+    transition: height .25s var(--ease);
+    color: var(--ink-soft);
+    gap:8px;
+    font-size:12.5px;
+    font-weight:600;
+  }
+  .refresh-zone.show{ height:54px; }
+  .spinner{
+    width:16px;height:16px;
+    border-radius:50%;
+    border: 2px solid rgba(26,22,20,0.18);
+    border-top-color: var(--orange);
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin{ to{ transform: rotate(360deg); } }
+
+  /* ===== Balance card (signature element) ===== */
+  .balance-wrap{ padding: 18px 16px 6px 16px; }
+  .balance-card{
+    background: var(--ink);
+    color: var(--cream);
+    border-radius: var(--radius-card);
+    padding: 22px 20px 18px 20px;
+    position: relative;
+    overflow:hidden;
+    box-shadow: 0 14px 30px -14px rgba(26,22,20,0.55);
+  }
+  .balance-card::after{
+    content:'';
+    position:absolute;
+    right:-40px; top:-40px;
+    width:160px;height:160px;
+    border-radius:50%;
+    background: radial-gradient(circle, rgba(243,92,59,0.35), transparent 70%);
+  }
+  .perforation{
+    position:absolute;
+    left:0; right:0; bottom:46px;
+    height:0;
+    border-bottom: 2px dashed rgba(249,236,204,0.18);
+  }
+  .balance-label{
+    font-size:11.5px;
+    letter-spacing:.08em;
+    text-transform:uppercase;
+    color: rgba(249,236,204,0.55);
+    font-weight:600;
+  }
+  .balance-amount{
+    font-family:'Sora', sans-serif;
+    font-weight: 800;
+    font-size: 34px;
+    letter-spacing:-0.01em;
+    margin-top:6px;
+    display:flex;
+    align-items:baseline;
+    gap:6px;
+  }
+  .balance-amount .cents{ font-size:18px; opacity:.6; font-weight:600; }
+  .balance-meta{
+    display:flex;
+    justify-content:space-between;
+    margin-top: 18px;
+    position:relative;
+    z-index:1;
+  }
+  .balance-meta-item{ font-family:'JetBrains Mono', monospace; }
+  .balance-meta-label{
+    font-size:10px; text-transform:uppercase; letter-spacing:.06em;
+    color: rgba(249,236,204,0.5); margin-bottom:3px;
+  }
+  .balance-meta-value{ font-size:13px; font-weight:600; }
+  .balance-meta-value.in{ color:#9FE3B8; }
+  .balance-meta-value.out{ color:#FFB199; }
+
+  /* ===== Quick actions ===== */
+  .quick-actions{
+    display:flex;
+    gap:10px;
+    padding: 16px 16px 4px 16px;
+  }
+  .qa-btn{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:7px;
+    background: #FFFFFF;
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:12px 6px;
+    cursor:pointer;
+    font-family:inherit;
+    font-size:11.5px;
+    font-weight:600;
+    color: var(--ink-soft);
+    transition: transform .15s var(--ease-snap), box-shadow .2s var(--ease), border-color .2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .qa-btn:active{ transform: scale(.94); }
+  .qa-btn:hover{ box-shadow: 0 8px 18px -10px rgba(26,22,20,0.25); border-color: rgba(243,92,59,0.3); }
+  .qa-icon{
+    width:38px;height:38px;
+    border-radius:50%;
+    background: var(--orange-pale);
+    display:flex;align-items:center;justify-content:center;
+    color: var(--orange-deep);
+    transition: background .2s, transform .2s var(--ease-snap);
+  }
+  .qa-btn:hover .qa-icon{ background: var(--orange); color:#fff; transform: rotate(8deg); }
+  .qa-icon svg{ width:18px;height:18px; }
+
+  /* ===== Section heading ===== */
+  .section-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 20px 16px 8px 16px;
+  }
+  .section-title{
+    font-family:'Sora', sans-serif;
+    font-weight:700;
+    font-size:15.5px;
+    color: var(--ink);
+  }
+  .section-link{
+    font-size:12px;
+    font-weight:700;
+    color: var(--orange-deep);
+    cursor:pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ===== Transaction list (cards) ===== */
+  .tx-list{ padding: 0 16px; display:flex; flex-direction:column; gap:10px; }
+  .tx-card{
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:12px 12px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+    position:relative;
+    cursor:pointer;
+    transition: transform .15s var(--ease-snap), box-shadow .2s var(--ease);
+    animation: tx-in .42s var(--ease) backwards;
+  }
+  .tx-card:active{ transform: scale(.985); }
+  .tx-card:hover{ box-shadow: 0 10px 22px -14px rgba(26,22,20,0.3); }
+  @keyframes tx-in{
+    from{ opacity:0; transform: translateY(10px); }
+    to{ opacity:1; transform: translateY(0); }
+  }
+  .tx-icon{
+    width:42px;height:42px;
+    border-radius:12px;
+    display:flex;align-items:center;justify-content:center;
+    flex-shrink:0;
+    font-size:18px;
+  }
+  .tx-icon.food{ background:#FFE3D6; }
+  .tx-icon.income{ background:#DCF2E3; }
+  .tx-icon.transport{ background:#E3E9FB; }
+  .tx-icon.shop{ background:#FCE6F2; }
+  .tx-icon.bill{ background:#FFF1CC; }
+  .tx-info{ flex:1; min-width:0; }
+  .tx-name{ font-size:13.5px; font-weight:700; color:var(--ink); }
+  .tx-sub{ font-size:11.5px; color:var(--ink-soft); opacity:.65; margin-top:2px; }
+  .tx-amount{ font-family:'JetBrains Mono', monospace; font-size:13px; font-weight:700; white-space:nowrap; }
+  .tx-amount.out{ color: var(--orange-deep); }
+  .tx-amount.in{ color: var(--green); }
+
+  .tx-delete-btn{
+    position:absolute;
+    right:0; top:0; bottom:0;
+    width:64px;
+    background: var(--orange-deep);
+    color:#fff;
+    border-radius: 0 14px 14px 0;
+    display:flex;align-items:center;justify-content:center;
+    transform: translateX(64px);
+    transition: transform .2s var(--ease);
+  }
+  .tx-card.swiped .tx-delete-btn{ transform: translateX(0); }
+  .tx-card.swiped .tx-main{ transform: translateX(-64px); }
+  .tx-main{ display:flex; align-items:center; gap:12px; flex:1; min-width:0; transition: transform .2s var(--ease); }
+
+  /* removing animation */
+  .tx-card.removing{
+    animation: tx-out .28s var(--ease) forwards;
+  }
+  @keyframes tx-out{
+    to{ opacity:0; transform: scale(.92) translateX(-12px); max-height:0; margin:0; padding:0; }
+  }
+
+  /* ===== Budget cards ===== */
+  .budget-scroll{
+    display:flex; gap:10px; padding: 0 16px; overflow-x:auto; scrollbar-width:none;
+  }
+  .budget-scroll::-webkit-scrollbar{ display:none; }
+  .budget-card{
+    min-width: 150px;
+    background:#fff;
+    border:1px solid var(--line);
+    border-radius:14px;
+    padding:14px;
+    flex-shrink:0;
+  }
+  .budget-name{ font-size:12.5px; font-weight:700; display:flex; align-items:center; gap:6px; }
+  .budget-dot{ width:8px;height:8px;border-radius:50%; }
+  .budget-bar{
+    height:6px; border-radius:6px; background: var(--cream-deep); margin-top:10px; overflow:hidden;
+  }
+  .budget-bar-fill{
+    height:100%; border-radius:6px; background: var(--orange);
+    width:0%;
+    transition: width 1s var(--ease) .1s;
+  }
+  .budget-figures{ display:flex; justify-content:space-between; margin-top:8px; font-size:11px; color:var(--ink-soft); font-family:'JetBrains Mono',monospace; }
+
+  /* ===== Empty state ===== */
+  .empty-state{
+    display:none;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+    padding: 40px 30px;
+    color: var(--ink-soft);
+  }
+  .empty-state.show{ display:flex; }
+  .empty-state svg{ width:64px;height:64px; opacity:.4; margin-bottom:14px; }
+  .empty-state h3{ font-family:'Sora',sans-serif; font-size:15px; margin:0 0 6px 0; color:var(--ink); }
+  .empty-state p{ font-size:12.5px; margin:0; opacity:.75; line-height:1.5; }
+
+  /* ===== Bottom nav ===== */
+  .bottom-nav{
+    position: fixed;
+    bottom:0; left:50%;
+    transform: translateX(-50%);
+    width:100%;
+    max-width:430px;
+    background: rgba(249,236,204,0.92);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid var(--line);
+    display:flex;
+    justify-content:space-around;
+    padding: 8px 6px calc(8px + env(safe-area-inset-bottom)) 6px;
+    z-index: 35;
+  }
+  .nav-btn{
+    background:none;border:none;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:3px;
+    padding: 6px 14px;
+    color: var(--ink-soft);
+    opacity:.5;
+    cursor:pointer;
+    font-family:inherit;
+    font-size:10.5px;
+    font-weight:600;
+    transition: opacity .2s var(--ease), transform .2s var(--ease-snap), color .2s;
+    -webkit-tap-highlight-color: transparent;
+    position:relative;
+  }
+  .nav-btn svg{ width:22px;height:22px; transition: transform .25s var(--ease-snap); }
+  .nav-btn.active{ opacity:1; color: var(--orange-deep); }
+  .nav-btn.active svg{ transform: translateY(-2px); }
+  .nav-btn:active svg{ transform: scale(.85); }
+  .nav-fab{
+    width:50px;height:50px;
+    border-radius:50%;
+    background: var(--orange);
+    color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    margin-top:-22px;
+    box-shadow: 0 10px 20px -8px rgba(243,92,59,0.6);
+    transition: transform .2s var(--ease-snap), box-shadow .2s;
+  }
+  .nav-fab svg{ width:24px;height:24px; }
+  .nav-btn.fab-btn:active .nav-fab{ transform: scale(.88) rotate(90deg); }
+  .nav-btn.fab-btn{ opacity:1; }
+
+  /* ===== Drawer (burger menu) ===== */
+  .drawer-overlay{
+    position:fixed; inset:0;
+    background: rgba(26,22,20,0.5);
+    opacity:0;
+    pointer-events:none;
+    transition: opacity .3s var(--ease);
+    z-index: 50;
+  }
+  .drawer-overlay.open{ opacity:1; pointer-events:auto; }
+  .drawer{
+    position:fixed;
+    top:0; bottom:0; left:0;
+    width: 82%;
+    max-width: 320px;
+    background: var(--ink);
+    color: var(--cream);
+    transform: translateX(-100%);
+    transition: transform .36s var(--ease);
+    z-index: 51;
+    display:flex;
+    flex-direction:column;
+    box-shadow: 20px 0 50px rgba(0,0,0,0.3);
+  }
+  .drawer.open{ transform: translateX(0); }
+  .drawer-head{
+    padding: 28px 22px 18px 22px;
+    border-bottom: 1px solid rgba(249,236,204,0.12);
+  }
+  .drawer-avatar{
+    width:54px;height:54px;
+    border-radius:50%;
+    background: var(--orange);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Sora',sans-serif;
+    font-weight:800;
+    font-size:20px;
+    margin-bottom:12px;
+  }
+  .drawer-name{ font-family:'Sora',sans-serif; font-weight:700; font-size:16px; }
+  .drawer-email{ font-size:12px; opacity:.55; margin-top:2px; }
+  .drawer-body{ padding: 10px 12px; flex:1; overflow-y:auto; }
+  .drawer-item{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding: 13px 12px;
+    border-radius:12px;
+    cursor:pointer;
+    font-size:14px;
+    font-weight:600;
+    transition: background .18s var(--ease), padding-left .18s var(--ease);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .drawer-item:hover{ background: rgba(249,236,204,0.08); padding-left:18px; }
+  .drawer-item.active{ background: rgba(243,92,59,0.18); color:#FFB199; }
+  .drawer-item svg{ width:19px;height:19px; opacity:.8; flex-shrink:0; }
+  .drawer-foot{
+    padding: 16px 22px 26px 22px;
+    border-top: 1px solid rgba(249,236,204,0.12);
+    font-size:11px;
+    opacity:.4;
+  }
+
+  /* ===== Snackbar (undo) ===== */
+  .snackbar{
+    position:fixed;
+    left:50%;
+    bottom: 86px;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--ink);
+    color: var(--cream);
+    padding: 13px 14px 13px 18px;
+    border-radius: 12px;
+    display:flex;
+    align-items:center;
+    gap:16px;
+    font-size:13px;
+    font-weight:600;
+    box-shadow: 0 16px 34px -10px rgba(0,0,0,0.5);
+    opacity:0;
+    pointer-events:none;
+    transition: opacity .25s var(--ease), transform .25s var(--ease);
+    z-index: 60;
+    max-width: 380px;
+    width: calc(100% - 64px);
+  }
+  .snackbar.show{ opacity:1; transform: translateX(-50%) translateY(0); pointer-events:auto; }
+  .snackbar-undo{
+    background:none; border:none;
+    color: var(--orange);
+    font-weight:800;
+    font-size:13px;
+    cursor:pointer;
+    white-space:nowrap;
+  }
+
+  /* ===== Confirm sheet (delete confirmation) ===== */
+  .sheet-overlay{
+    position:fixed; inset:0;
+    background: rgba(26,22,20,0.5);
+    opacity:0; pointer-events:none;
+    transition: opacity .25s var(--ease);
+    z-index: 55;
+    display:flex; align-items:flex-end; justify-content:center;
+  }
+  .sheet-overlay.open{ opacity:1; pointer-events:auto; }
+  .sheet{
+    width:100%; max-width:430px;
+    background: var(--cream);
+    border-radius: 22px 22px 0 0;
+    padding: 22px 20px calc(26px + env(safe-area-inset-bottom)) 20px;
+    transform: translateY(100%);
+    transition: transform .32s var(--ease);
+  }
+  .sheet-overlay.open .sheet{ transform: translateY(0); }
+  .sheet-handle{ width:40px;height:4px;background:var(--line); border-radius:4px; margin:0 auto 18px auto; }
+  .sheet-icon{
+    width:50px;height:50px; border-radius:50%;
+    background: var(--orange-pale); color:var(--orange-deep);
+    display:flex;align-items:center;justify-content:center;
+    margin-bottom: 14px;
+  }
+  .sheet h3{ font-family:'Sora',sans-serif; font-size:16.5px; margin:0 0 6px 0; }
+  .sheet p{ font-size:13px; color:var(--ink-soft); margin:0 0 20px 0; line-height:1.5; }
+  .sheet-actions{ display:flex; gap:10px; }
+  .sheet-btn{
+    flex:1; border:none; border-radius:12px; padding:14px; font-family:inherit;
+    font-weight:700; font-size:13.5px; cursor:pointer;
+    transition: transform .15s var(--ease-snap), opacity .15s;
+  }
+  .sheet-btn:active{ transform: scale(.96); }
+  .sheet-btn.ghost{ background: rgba(26,22,20,0.06); color: var(--ink); }
+  .sheet-btn.danger{ background: var(--orange-deep); color:#fff; }
+
+  /* Font loading via system stack fallback annotation (no external font fetch needed) */
+  .font-display{ font-family:'Sora','Inter',sans-serif; }
+
+
+  /* ===== Modern assertive redesign overrides ===== */
+  body{
+    background:
+      radial-gradient(circle at 15% -10%, rgba(37,99,235,.35), transparent 36%),
+      radial-gradient(circle at 85% 0%, rgba(14,165,233,.24), transparent 32%),
+      #070B14;
+  }
+  .device{
+    background:
+      linear-gradient(180deg, #F8FAFC 0%, #EEF4FF 42%, #F8FAFC 100%);
+    box-shadow: 0 0 0 1px rgba(255,255,255,.08), 0 30px 80px rgba(0,0,0,.45);
+  }
+  .topbar{
+    background: rgba(248,250,252,.88);
+    backdrop-filter: blur(18px);
+  }
+  .brand-mark{
+    text-transform: uppercase;
+    letter-spacing: -.04em;
+  }
+  .brand-sub{ font-weight: 800; opacity:.72; }
+  .tab-underline{
+    height:4px;
+    background: linear-gradient(90deg, #2563EB, #06B6D4);
+  }
+  .balance-card{
+    background:
+      linear-gradient(135deg, #0F172A 0%, #111827 45%, #1E3A8A 100%);
+    border: 1px solid rgba(255,255,255,.10);
+    box-shadow: 0 24px 50px -22px rgba(15,23,42,.75);
+  }
+  .balance-card::before{
+    content:'';
+    position:absolute;
+    inset:0;
+    background:
+      linear-gradient(115deg, transparent 0 45%, rgba(255,255,255,.12) 46%, transparent 58%),
+      radial-gradient(circle at 88% 12%, rgba(6,182,212,.45), transparent 28%);
+    pointer-events:none;
+  }
+  .balance-card::after{
+    background: radial-gradient(circle, rgba(37,99,235,.65), transparent 70%);
+  }
+  .balance-label,.balance-amount,.balance-meta{ position:relative; z-index:1; }
+  .quick-actions{ gap:12px; }
+  .qa-btn,.tx-card,.budget-card{
+    background: rgba(255,255,255,.86);
+    border: 1px solid rgba(148,163,184,.22);
+    box-shadow: 0 12px 30px -22px rgba(15,23,42,.50);
+  }
+  .qa-icon{
+    background: linear-gradient(135deg, #DBEAFE, #E0F2FE);
+    color:#1D4ED8;
+  }
+  .qa-btn:hover .qa-icon{
+    background: linear-gradient(135deg, #2563EB, #06B6D4);
+  }
+  .tx-card:hover,.qa-btn:hover,.budget-card:hover{
+    border-color: rgba(37,99,235,.34);
+    box-shadow: 0 18px 38px -24px rgba(15,23,42,.65);
+  }
+  .section-title{
+    font-size:16px;
+    letter-spacing:-.02em;
+  }
+  .section-link{ color:#1D4ED8; }
+  .tx-icon.food{ background:#FEE2E2; }
+  .tx-icon.income{ background:#D1FAE5; }
+  .tx-icon.transport{ background:#DBEAFE; }
+  .tx-icon.shop{ background:#FCE7F3; }
+  .tx-icon.bill{ background:#FEF3C7; }
+  .tx-delete-btn,.sheet-btn.danger{
+    background: linear-gradient(135deg, #DC2626, #991B1B);
+  }
+  .bottom-nav{
+    background: rgba(248,250,252,.86);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 -18px 40px -28px rgba(15,23,42,.55);
+  }
+  .nav-fab{
+    background: linear-gradient(135deg, #2563EB, #06B6D4);
+    box-shadow: 0 14px 28px -10px rgba(37,99,235,.80);
+  }
+  .nav-btn.active{ color:#1D4ED8; }
+  .drawer,.apps-panel,.snackbar{
+    background: #0F172A;
+  }
+  .drawer-avatar{
+    background: linear-gradient(135deg, #2563EB, #06B6D4);
+  }
+  .drawer-item.active{
+    background: rgba(37,99,235,.20);
+    color:#BFDBFE;
+  }
+  .sheet{
+    background: #F8FAFC;
+    border-top: 1px solid rgba(148,163,184,.25);
+  }
+  .snackbar-undo{ color:#93C5FD; }
+
+
+  /* ===== FIX: tombol delete jangan bocor ke luar card ===== */
+  .tx-card{
+    overflow: hidden;
+  }
+  .tx-delete-btn{
+    right: 0;
+    width: 72px;
+    transform: translateX(100%);
+    background: linear-gradient(135deg, #EF4444, #B91C1C);
+  }
+  .tx-card.swiped .tx-delete-btn{
+    transform: translateX(0);
+  }
+  .tx-card.swiped .tx-main{
+    transform: translateX(-72px);
+  }
+
+</style>
+</head>
+<body>
+
+<div class="device" id="device">
+
+  <!-- ===== TOP APP BAR ===== -->
+  <header class="topbar" id="topbar">
+    <div class="topbar-row">
+      <button class="icon-btn" id="burgerBtn" aria-label="Buka menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="14" y2="17"/></svg>
+      </button>
+
+      <div class="brand">
+        <div class="brand-mark">TUNA<span>I</span></div>
+        <div class="brand-sub">Finance Tracker</div>
+      </div>
+
+      <div class="top-actions">
+        <button class="icon-btn" id="searchBtn" aria-label="Cari transaksi">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+
+        <div class="apps-menu-wrap">
+          <button class="icon-btn" id="appsBtn" aria-label="Menu aplikasi">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="5" r="2"/><circle cx="12" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="12" cy="19" r="2"/><circle cx="19" cy="19" r="2"/></svg>
+          </button>
+
+          <div class="apps-panel" id="appsPanel">
+            <div class="apps-item has-sub" id="exportItem">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Ekspor data
+              <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 6 15 12 9 18"/></svg>
+            </div>
+            <div class="apps-sub" id="exportSub">
+              <div class="apps-sub-item" data-toast="Mengekspor sebagai PDF…">Sebagai PDF</div>
+              <div class="apps-sub-item" data-toast="Mengekspor sebagai Excel…">Sebagai Excel (.xlsx)</div>
+              <div class="apps-sub-item" data-toast="Tautan berbagi disalin">Bagikan tautan</div>
+            </div>
+
+            <div class="apps-divider"></div>
+
+            <div class="apps-item" data-toast="Membuka tema tampilan…">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/></svg>
+              Tampilan
+            </div>
+            <div class="apps-item" data-toast="Membuka pengaturan…">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              Pengaturan
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TABS BAR ===== -->
+    <nav class="tabs" id="tabs">
+      <button class="tab-btn active" data-tab="ringkasan">Ringkasan</button>
+      <button class="tab-btn" data-tab="transaksi">Transaksi</button>
+      <button class="tab-btn" data-tab="anggaran">Anggaran</button>
+      <button class="tab-btn" data-tab="kosong">Tagihan</button>
+      <span class="tab-underline" id="tabUnderline"></span>
+    </nav>
+    <div class="tabs-divider"></div>
+  </header>
+
+  <!-- ===== SCROLLABLE CONTENT ===== -->
+  <main class="scroll-area" id="scrollArea">
+
+    <div class="refresh-zone" id="refreshZone">
+      <div class="spinner"></div>
+      <span>Memperbarui data…</span>
+    </div>
+
+    <!-- RINGKASAN -->
+    <section id="panel-ringkasan">
+      <div class="balance-wrap">
+        <div class="balance-card">
+          <div class="balance-label">Saldo Tersedia</div>
+          <div class="balance-amount">Rp <span id="balanceValue">4.280.500</span><span class="cents">,00</span></div>
+          <div class="perforation"></div>
+          <div class="balance-meta">
+            <div class="balance-meta-item">
+              <div class="balance-meta-label">Pemasukan</div>
+              <div class="balance-meta-value in">+Rp 6.500.000</div>
+            </div>
+            <div class="balance-meta-item">
+              <div class="balance-meta-label">Pengeluaran</div>
+              <div class="balance-meta-value out">−Rp 2.219.500</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="quick-actions">
+        <button class="qa-btn" data-toast="Membuka form transfer…">
+          <div class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg></div>
+          Transfer
+        </button>
+        <button class="qa-btn" data-toast="Membuka form tarik dana…">
+          <div class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg></div>
+          Tarik
+        </button>
+        <button class="qa-btn" data-toast="Membuka isi saldo…">
+          <div class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></div>
+          Isi Saldo
+        </button>
+        <button class="qa-btn" data-toast="Membuka tagihan…">
+          <div class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+          Tagihan
+        </button>
+      </div>
+
+      <div class="section-head">
+        <div class="section-title">Transaksi Terbaru</div>
+        <div class="section-link" data-go-tab="transaksi">Lihat semua</div>
+      </div>
+      <div class="tx-list" id="txListPreview"><!-- diisi oleh JS (3 item) --></div>
+    </section>
+
+    <!-- TRANSAKSI -->
+    <section id="panel-transaksi" style="display:none;">
+      <div class="section-head" style="padding-top:18px;">
+        <div class="section-title">Semua Transaksi</div>
+        <div class="section-link" id="sortLink">Urutkan</div>
+      </div>
+      <div class="tx-list" id="txListFull"><!-- diisi oleh JS --></div>
+      <div class="empty-state" id="emptyState">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/></svg>
+        <h3>Belum ada transaksi</h3>
+        <p>Semua transaksi yang kamu hapus akan muncul kosong di sini. Tarik ke bawah untuk memuat ulang.</p>
+      </div>
+    </section>
+
+    <!-- ANGGARAN -->
+    <section id="panel-anggaran" style="display:none;">
+      <div class="section-head" style="padding-top:18px;">
+        <div class="section-title">Anggaran Bulan Ini</div>
+      </div>
+      <div class="budget-scroll" id="budgetScroll"><!-- diisi JS --></div>
+
+      <div class="section-head">
+        <div class="section-title">Catatan</div>
+      </div>
+      <div style="padding:0 16px;">
+        <div class="tx-card" style="cursor:default;">
+          <div class="tx-main">
+            <div class="tx-icon bill">💡</div>
+            <div class="tx-info">
+              <div class="tx-name">Sisa anggaran otomatis diperbarui</div>
+              <div class="tx-sub">Berdasarkan transaksi 30 hari terakhir</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAGIHAN (tab kosong contoh) -->
+    <section id="panel-kosong" style="display:none;">
+      <div class="empty-state show" style="padding-top:60px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <h3>Tidak ada tagihan aktif</h3>
+        <p>Tagihan listrik, internet, dan langganan akan tampil di sini begitu kamu menambahkannya.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== BOTTOM MENU ===== -->
+  <nav class="bottom-nav">
+    <button class="nav-btn active" data-tab="ringkasan">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+      Beranda
+    </button>
+    <button class="nav-btn" data-tab="transaksi">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="14" y2="18"/></svg>
+      Transaksi
+    </button>
+    <button class="nav-btn fab-btn" id="fabBtn">
+      <div class="nav-fab">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </div>
+    </button>
+    <button class="nav-btn" data-tab="anggaran">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+      Anggaran
+    </button>
+    <button class="nav-btn" id="profileNavBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+      Profil
+    </button>
+  </nav>
+
+</div>
+
+<!-- ===== DRAWER ===== -->
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<aside class="drawer" id="drawer">
+  <div class="drawer-head">
+    <div class="drawer-avatar">RA</div>
+    <div class="drawer-name">Rani Anggraini</div>
+    <div class="drawer-email">rani.anggraini@mail.com</div>
+  </div>
+  <div class="drawer-body">
+    <div class="drawer-item active" data-toast="Beranda dibuka">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      Beranda
+    </div>
+    <div class="drawer-item" data-toast="Membuka kartu saya…">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      Kartu Saya
+    </div>
+    <div class="drawer-item" data-toast="Membuka laporan…">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      Laporan
+    </div>
+    <div class="drawer-item" data-toast="Membuka target tabungan…">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+      Target Tabungan
+    </div>
+    <div class="drawer-item" data-toast="Membuka bantuan…">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 1 1 5.83 1c0 2-3 2-3 4"/><line x1="12" y1="17" x2="12" y2="17"/></svg>
+      Bantuan
+    </div>
+    <div class="drawer-item" id="logoutItem">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      Keluar
+    </div>
+  </div>
+  <div class="drawer-foot">Tunai v2.4.0 · Edisi Pribadi</div>
+</aside>
+
+<!-- ===== DELETE CONFIRM SHEET ===== -->
+<div class="sheet-overlay" id="sheetOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg>
+    </div>
+    <h3>Hapus transaksi ini?</h3>
+    <p id="sheetText">Catatan transaksi akan dihapus. Kamu masih bisa membatalkannya sesaat setelah ini.</p>
+    <div class="sheet-actions">
+      <button class="sheet-btn ghost" id="sheetCancel">Batal</button>
+      <button class="sheet-btn danger" id="sheetConfirm">Hapus</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== SNACKBAR ===== -->
+<div class="snackbar" id="snackbar">
+  <span id="snackbarText">Transaksi dihapus</span>
+  <button class="snackbar-undo" id="snackbarUndo">URUNGKAN</button>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------- Data ---------- */
+  let transactions = [
+    {id:1, name:"Kopi Kenangan", cat:"Makanan & Minuman", amount:-28000, icon:"☕", iconClass:"food", time:"Hari ini, 09:14"},
+    {id:2, name:"Gaji Bulanan", cat:"Pemasukan", amount:6500000, icon:"💼", iconClass:"income", time:"Hari ini, 08:00"},
+    {id:3, name:"Gojek - Ke Kantor", cat:"Transportasi", amount:-21000, icon:"🛵", iconClass:"transport", time:"Kemarin, 17:32"},
+    {id:4, name:"Tokopedia - Casing HP", cat:"Belanja", amount:-89000, icon:"🛍️", iconClass:"shop", time:"Kemarin, 14:05"},
+    {id:5, name:"Token Listrik", cat:"Tagihan", amount:-150000, icon:"💡", iconClass:"bill", time:"18 Jun, 11:00"},
+    {id:6, name:"Nasi Padang Sari Rasa", cat:"Makanan & Minuman", amount:-45000, icon:"🍛", iconClass:"food", time:"17 Jun, 12:40"},
+    {id:7, name:"Indomaret", cat:"Belanja", amount:-67500, icon:"🛍️", iconClass:"shop", time:"16 Jun, 19:10"},
+    {id:8, name:"Internet Bulanan", cat:"Tagihan", amount:-275000, icon:"📶", iconClass:"bill", time:"15 Jun, 09:00"},
+  ];
+
+  const budgets = [
+    {name:"Makanan", color:"#F35C3B", spent:680000, total:1200000},
+    {name:"Transportasi", color:"#5C7CF3", spent:310000, total:500000},
+    {name:"Belanja", color:"#E35CA8", spent:520000, total:600000},
+    {name:"Tagihan", color:"#E0A93B", spent:425000, total:700000},
+  ];
+
+  const fmt = n => "Rp " + Math.abs(n).toLocaleString("id-ID");
+
+  /* ---------- Render transactions ---------- */
+  function txCardHTML(tx, idx){
+    const sign = tx.amount < 0 ? "−" : "+";
+    const cls = tx.amount < 0 ? "out" : "in";
+    return `
+      <div class="tx-card" data-id="${tx.id}" style="animation-delay:${idx*45}ms">
+        <div class="tx-delete-btn" data-action="delete">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+        </div>
+        <div class="tx-main">
+          <div class="tx-icon ${tx.iconClass}">${tx.icon}</div>
+          <div class="tx-info">
+            <div class="tx-name">${tx.name}</div>
+            <div class="tx-sub">${tx.cat} · ${tx.time}</div>
+          </div>
+          <div class="tx-amount ${cls}">${sign}${fmt(tx.amount)}</div>
+        </div>
+      </div>`;
+  }
+
+  function renderTx(){
+    const preview = transactions.slice(0,3).map((t,i)=>txCardHTML(t,i)).join("");
+    document.getElementById("txListPreview").innerHTML = preview;
+
+    const fullList = document.getElementById("txListFull");
+    const empty = document.getElementById("emptyState");
+    if(transactions.length === 0){
+      fullList.innerHTML = "";
+      empty.classList.add("show");
+    } else {
+      empty.classList.remove("show");
+      fullList.innerHTML = transactions.map((t,i)=>txCardHTML(t,i)).join("");
+    }
+    bindTxCards();
+  }
+
+  function renderBudgets(){
+    const wrap = document.getElementById("budgetScroll");
+    wrap.innerHTML = budgets.map(b=>{
+      const pct = Math.min(100, Math.round((b.spent/b.total)*100));
+      return `
+        <div class="budget-card">
+          <div class="budget-name"><span class="budget-dot" style="background:${b.color}"></span>${b.name}</div>
+          <div class="budget-bar"><div class="budget-bar-fill" style="width:${pct}%; background:${b.color}"></div></div>
+          <div class="budget-figures"><span>${fmt(b.spent)}</span><span>${pct}%</span></div>
+        </div>`;
+    }).join("");
+    requestAnimationFrame(()=>{ /* triggers width transition since already in DOM */ });
+  }
+
+  /* ---------- Swipe + delete + undo ---------- */
+  let pendingDeleteId = null;
+  let lastDeleted = null;
+  let lastDeletedIndex = null;
+  let undoTimer = null;
+
+  function bindTxCards(){
+    document.querySelectorAll(".tx-card").forEach(card=>{
+      let startX = 0, currentX = 0, dragging = false;
+      const main = card.querySelector(".tx-main");
+      const id = Number(card.dataset.id);
+
+      card.addEventListener("touchstart", e=>{
+        startX = e.touches[0].clientX; dragging = true;
+      }, {passive:true});
+      card.addEventListener("touchmove", e=>{
+        if(!dragging) return;
+        currentX = e.touches[0].clientX - startX;
+        if(currentX < 0 && currentX > -64){
+          main.style.transition = "none";
+          main.style.transform = `translateX(${currentX}px)`;
+        }
+      }, {passive:true});
+      card.addEventListener("touchend", ()=>{
+        dragging = false;
+        main.style.transition = "";
+        main.style.transform = "";
+        if(currentX < -32){ card.classList.add("swiped"); }
+        else { card.classList.remove("swiped"); }
+        currentX = 0;
+      });
+
+      card.querySelector('[data-action="delete"]').addEventListener("click", e=>{
+        e.stopPropagation();
+        openDeleteConfirm(id);
+      });
+
+      card.addEventListener("click", ()=>{
+        if(card.classList.contains("swiped")){ card.classList.remove("swiped"); return; }
+        showToast(`Detail: ${transactions.find(t=>t.id===id)?.name || ""}`);
+      });
+    });
+  }
+
+  function openDeleteConfirm(id){
+    pendingDeleteId = id;
+    const tx = transactions.find(t=>t.id===id);
+    document.getElementById("sheetText").textContent =
+      `"${tx.name}" akan dihapus dari riwayat transaksi. Kamu masih bisa membatalkannya sesaat setelah ini.`;
+    document.getElementById("sheetOverlay").classList.add("open");
+  }
+
+  document.getElementById("sheetCancel").addEventListener("click", ()=>{
+    document.getElementById("sheetOverlay").classList.remove("open");
+    pendingDeleteId = null;
+  });
+
+  document.getElementById("sheetConfirm").addEventListener("click", ()=>{
+    document.getElementById("sheetOverlay").classList.remove("open");
+    if(pendingDeleteId == null) return;
+    deleteTransaction(pendingDeleteId);
+    pendingDeleteId = null;
+  });
+
+  function deleteTransaction(id){
+    const idx = transactions.findIndex(t=>t.id===id);
+    if(idx === -1) return;
+    const cardEl = document.querySelector(`.tx-card[data-id="${id}"]`);
+    lastDeleted = transactions[idx];
+    lastDeletedIndex = idx;
+
+    if(cardEl){
+      cardEl.classList.add("removing");
+      cardEl.addEventListener("animationend", ()=>{
+        transactions.splice(idx,1);
+        renderTx();
+        showSnackbar(`"${lastDeleted.name}" dihapus`);
+      }, {once:true});
+    } else {
+      transactions.splice(idx,1);
+      renderTx();
+      showSnackbar(`"${lastDeleted.name}" dihapus`);
+    }
+  }
+
+  function showSnackbar(text){
+    clearTimeout(undoTimer);
+    const sb = document.getElementById("snackbar");
+    document.getElementById("snackbarText").textContent = text;
+    sb.classList.add("show");
+    undoTimer = setTimeout(()=>{ sb.classList.remove("show"); lastDeleted=null; }, 4500);
+  }
+
+  document.getElementById("snackbarUndo").addEventListener("click", ()=>{
+    if(lastDeleted){
+      transactions.splice(lastDeletedIndex, 0, lastDeleted);
+      renderTx();
+      lastDeleted = null;
+    }
+    document.getElementById("snackbar").classList.remove("show");
+    clearTimeout(undoTimer);
+  });
+
+  /* ---------- Toast (lightweight, reuses snackbar style without undo) ---------- */
+  function showToast(text){
+    const sb = document.getElementById("snackbar");
+    document.getElementById("snackbarText").textContent = text;
+    document.getElementById("snackbarUndo").style.display = "none";
+    sb.classList.add("show");
+    clearTimeout(undoTimer);
+    undoTimer = setTimeout(()=>{
+      sb.classList.remove("show");
+      setTimeout(()=>{ document.getElementById("snackbarUndo").style.display = ""; }, 300);
+    }, 2200);
+  }
+
+  document.querySelectorAll('[data-toast]').forEach(el=>{
+    el.addEventListener("click", ()=> showToast(el.dataset.toast));
+  });
+
+  /* ---------- Drawer (burger menu) ---------- */
+  const drawer = document.getElementById("drawer");
+  const drawerOverlay = document.getElementById("drawerOverlay");
+  function openDrawer(){ drawer.classList.add("open"); drawerOverlay.classList.add("open"); }
+  function closeDrawer(){ drawer.classList.remove("open"); drawerOverlay.classList.remove("open"); }
+  document.getElementById("burgerBtn").addEventListener("click", openDrawer);
+  drawerOverlay.addEventListener("click", closeDrawer);
+  document.getElementById("logoutItem").addEventListener("click", ()=>{
+    closeDrawer();
+    showToast("Berhasil keluar (simulasi)");
+  });
+
+  /* ---------- Top apps menu + submenu ---------- */
+  const appsBtn = document.getElementById("appsBtn");
+  const appsPanel = document.getElementById("appsPanel");
+  appsBtn.addEventListener("click", e=>{
+    e.stopPropagation();
+    appsPanel.classList.toggle("open");
+  });
+  document.addEventListener("click", e=>{
+    if(!appsPanel.contains(e.target) && e.target !== appsBtn){
+      appsPanel.classList.remove("open");
+    }
+  });
+  const exportItem = document.getElementById("exportItem");
+  const exportSub = document.getElementById("exportSub");
+  exportItem.addEventListener("click", e=>{
+    e.stopPropagation();
+    exportItem.classList.toggle("open");
+    exportSub.classList.toggle("open");
+  });
+
+  document.getElementById("searchBtn").addEventListener("click", ()=> showToast("Pencarian dibuka"));
+  document.getElementById("profileNavBtn").addEventListener("click", ()=> showToast("Profil dibuka"));
+  document.getElementById("fabBtn").addEventListener("click", ()=> showToast("Tambah transaksi baru"));
+
+  /* ---------- Tabs ---------- */
+  const tabBtns = Array.from(document.querySelectorAll(".tab-btn"));
+  const underline = document.getElementById("tabUnderline");
+  const panels = {
+    ringkasan: document.getElementById("panel-ringkasan"),
+    transaksi: document.getElementById("panel-transaksi"),
+    anggaran: document.getElementById("panel-anggaran"),
+    kosong: document.getElementById("panel-kosong"),
+  };
+  const navBtns = Array.from(document.querySelectorAll(".nav-btn[data-tab]"));
+
+  function placeUnderline(btn){
+    underline.style.left = btn.offsetLeft + "px";
+    underline.style.width = btn.offsetWidth + "px";
+  }
+
+  function setActiveTab(name){
+    tabBtns.forEach(b=>{
+      const active = b.dataset.tab === name;
+      b.classList.toggle("active", active);
+      if(active) placeUnderline(b);
+    });
+    Object.keys(panels).forEach(k=>{
+      panels[k].style.display = (k === name) ? "" : "none";
+    });
+    navBtns.forEach(b=> b.classList.toggle("active", b.dataset.tab === name));
+    document.getElementById("scrollArea").scrollTo({top:0, behavior:"smooth"});
+  }
+
+  tabBtns.forEach(b=> b.addEventListener("click", ()=> setActiveTab(b.dataset.tab)));
+  navBtns.forEach(b=> b.addEventListener("click", ()=> setActiveTab(b.dataset.tab)));
+  document.querySelectorAll('[data-go-tab]').forEach(el=>{
+    el.addEventListener("click", ()=> setActiveTab(el.dataset.goTab));
+  });
+
+  window.addEventListener("resize", ()=>{
+    const activeBtn = tabBtns.find(b=>b.classList.contains("active"));
+    if(activeBtn) placeUnderline(activeBtn);
+  });
+
+  /* ---------- Topbar shadow on scroll ---------- */
+  const scrollArea = document.getElementById("scrollArea");
+  const topbar = document.getElementById("topbar");
+  scrollArea.addEventListener("scroll", ()=>{
+    topbar.classList.toggle("scrolled", scrollArea.scrollTop > 4);
+  });
+
+  /* ---------- Pull to refresh (simple, touch-based) ---------- */
+  const refreshZone = document.getElementById("refreshZone");
+  let pullStartY = 0, pulling = false;
+
+  scrollArea.addEventListener("touchstart", e=>{
+    if(scrollArea.scrollTop <= 0){
+      pullStartY = e.touches[0].clientY;
+      pulling = true;
+    }
+  }, {passive:true});
+
+  scrollArea.addEventListener("touchmove", e=>{
+    if(!pulling) return;
+    const dy = e.touches[0].clientY - pullStartY;
+    if(dy > 70){
+      refreshZone.classList.add("show");
+    }
+  }, {passive:true});
+
+  scrollArea.addEventListener("touchend", ()=>{
+    if(pulling && refreshZone.classList.contains("show")){
+      setTimeout(()=>{
+        refreshZone.classList.remove("show");
+        showToast("Data diperbarui");
+      }, 700);
+    }
+    pulling = false;
+  });
+
+  /* ---------- Sort link demo ---------- */
+  let sortAsc = false;
+  document.getElementById("sortLink").addEventListener("click", ()=>{
+    sortAsc = !sortAsc;
+    transactions.sort((a,b)=> sortAsc ? a.amount-b.amount : b.amount-a.amount);
+    renderTx();
+    showToast(sortAsc ? "Diurutkan: terkecil dahulu" : "Diurutkan: terbesar dahulu");
+  });
+
+  /* ---------- Keyboard accessibility: close overlays with Escape ---------- */
+  document.addEventListener("keydown", e=>{
+    if(e.key === "Escape"){
+      closeDrawer();
+      appsPanel.classList.remove("open");
+      document.getElementById("sheetOverlay").classList.remove("open");
+    }
+  });
+
+  /* ---------- Init ---------- */
+  renderTx();
+  renderBudgets();
+  requestAnimationFrame(()=> placeUnderline(tabBtns[0]));
+})();
+</script>
+</body>
+</html>
